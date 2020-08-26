@@ -1,0 +1,9 @@
+Server/
+target/
+*.class
+.idea/
+.settings/
+.vscode/
+.project
+playernpcs.iml
+.classpath
