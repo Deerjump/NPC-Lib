@@ -1,4 +1,4 @@
-package io.github.deerjump.playernpcs;
+package io.github.deerjump.npclib;
 
 import org.bukkit.craftbukkit.v1_16_R2.CraftServer;
 

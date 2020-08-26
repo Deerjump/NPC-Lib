@@ -1,4 +1,4 @@
-package io.github.deerjump.playernpcs;
+package io.github.deerjump.npclib;
 
 import static net.minecraft.server.v1_16_R2.IRegistry.ENTITY_TYPE;
 import java.lang.reflect.Field;

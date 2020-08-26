@@ -1,4 +1,4 @@
-package io.github.deerjump.playernpcs;
+package io.github.deerjump.npclib;
 
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
