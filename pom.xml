@@ -3,11 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
  
     <groupId>io.github.deerjump</groupId>
-    <artifactId>playernpcs</artifactId>
+    <artifactId>npc-lib</artifactId>
     <version>1.0-SNAPSHOT</version>
     
  
-    <name>PlayerNPCs</name>
+    <name>NPC-Lib</name>
     <url>https://deerjump.github.io</url>
 
     <properties>
