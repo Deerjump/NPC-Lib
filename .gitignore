@@ -1,0 +1,8 @@
+Server/
+target/
+*.class
+.idea/
+.settings/
+.vscode/
+.project
+.classpath
