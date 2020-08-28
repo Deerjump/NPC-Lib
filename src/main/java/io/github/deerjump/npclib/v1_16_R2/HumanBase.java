@@ -1,4 +1,4 @@
-package io.github.deerjump.npclib;
+package io.github.deerjump.npclib.v1_16_R2;
 
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
@@ -56,7 +56,7 @@ public class HumanBase extends NpcBase {
          throw new RuntimeException(reason);
       }
    }
-
+   
    public HumanBase(EntityTypes<? extends HumanBase> type, World world) {
       super(type, world);
       this.datawatcher.set(SKIN_PARTS, (byte) 127);

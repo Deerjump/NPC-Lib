@@ -1,4 +1,4 @@
-package io.github.deerjump.npclib;
+package io.github.deerjump.npclib.v1_16_R2;
 
 import org.bukkit.craftbukkit.v1_16_R2.CraftServer;
 import org.bukkit.craftbukkit.v1_16_R2.entity.CraftCreature;

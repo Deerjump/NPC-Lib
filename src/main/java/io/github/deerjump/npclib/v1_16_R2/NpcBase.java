@@ -1,4 +1,4 @@
-package io.github.deerjump.npclib;
+package io.github.deerjump.npclib.v1_16_R2;
 
 import static net.minecraft.server.v1_16_R2.IRegistry.ENTITY_TYPE;
 import java.lang.reflect.Field;
@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import javax.annotation.OverridingMethodsMustInvokeSuper;
+
 import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Lifecycle;
 
@@ -23,6 +24,7 @@ import net.minecraft.server.v1_16_R2.BlockPosition;
 import net.minecraft.server.v1_16_R2.ChatComponentText;
 import net.minecraft.server.v1_16_R2.DataWatcherObject;
 import net.minecraft.server.v1_16_R2.DataWatcherRegistry;
+import net.minecraft.server.v1_16_R2.Entity;
 import net.minecraft.server.v1_16_R2.EntityCreature;
 import net.minecraft.server.v1_16_R2.EntityInsentient;
 import net.minecraft.server.v1_16_R2.EntityPose;
@@ -40,7 +42,6 @@ import net.minecraft.server.v1_16_R2.World;
 //This is just here to suppress the warning in the static init
 @SuppressWarnings("unchecked")
 public class NpcBase extends EntityCreature {
-   private static final Map<EntityTypes<?>, AttributeProvider> DEFAULT_ATTRIBUTES;
    protected static final int ID_PLAYER = ENTITY_TYPE.a(EntityTypes.PLAYER);
 
    // Entity
@@ -63,39 +64,65 @@ public class NpcBase extends EntityCreature {
    
    // EntityInsentient
    protected static DataWatcherObject<Byte> INSENTIENT = null;
-   protected CraftEntity bukkitEntity;
-   static {
+
+
+   public static <Entity extends NpcBase> void setDefaultAttributes(EntityTypes<Entity> type){
       try {
          final Field modifiers = Field.class.getDeclaredField("modifiers");
          modifiers.setAccessible(true);
          final Field field = AttributeDefaults.class.getDeclaredField("b");
          modifiers.setInt(field, modifiers.getInt(field) & ~Modifier.FINAL);
          field.setAccessible(true);
-         DEFAULT_ATTRIBUTES = new HashMap<>((Map<EntityTypes<?>, AttributeProvider>) field.get(null));
-         field.set(null, DEFAULT_ATTRIBUTES);
-      } catch (Throwable reason) {
-         throw new RuntimeException(reason);
+         Map<EntityTypes<?>, AttributeProvider> attributes = new HashMap<>((Map<EntityTypes<?>, AttributeProvider>)field.get(null));
+         attributes.put(type, EntityInsentient.p().a());
+         field.set(null, attributes);
+         field.setAccessible(false);
+      } catch (NoSuchFieldException | IllegalArgumentException | IllegalAccessException e) {
+         e.printStackTrace();
       }
+
    }
 
    public static <Entity extends NpcBase> EntityTypes<Entity> register(EntityTypes.b<Entity> entity, String name, EntityTypes<?> model) {
-      //
+      
+      final EntityTypes<Entity> current = (EntityTypes<Entity>) ENTITY_TYPE.get(new MinecraftKey("custom", name));
+      if(current != ENTITY_TYPE.get(null)){
+         reloadEntities(current);
+         return current; 
+      }
+         
+      
       EntityTypes<Entity> type = ENTITY_TYPE.a(
          ENTITY_TYPE.a(model),
-         ResourceKey.a(IRegistry.l, MinecraftKey.a(name)),
+         ResourceKey.a(IRegistry.l,  new MinecraftKey("custom", name)),
          new EntityTypes<Entity>(entity, model.e(), true, model.b(), model.c(), model.d(), ImmutableSet.of(),
-            model.l(), model.getChunkRange(), model.getUpdateInterval()), Lifecycle.experimental()
+            model.l(), model.getChunkRange(), model.getUpdateInterval()), Lifecycle.stable()
       );
-      DEFAULT_ATTRIBUTES.put(type, DEFAULT_ATTRIBUTES.get(model));
-      DEFAULT_ATTRIBUTES.put(type, EntityInsentient.p().a());
+      setDefaultAttributes(type);
+      // reloadEntities(type);
       return type;
    }
 
-   @Deprecated
-   public static void unregister(EntityTypes<? extends NpcBase> entity){
+   private static void reloadEntities(EntityTypes<?> entityType){
+      System.out.println("Reloading: " + entityType);
+      Bukkit.getWorlds().forEach(world ->{
+         world.getEntities().forEach(entity ->{
+            net.minecraft.server.v1_16_R2.Entity nmsEntity = ((CraftEntity)entity).getHandle();
+            net.minecraft.server.v1_16_R2.Entity typeModel = entityType.a(((CraftWorld)world).getHandle());
 
-   }
-   
+            if(nmsEntity.getClass().getSimpleName().equals(typeModel.getClass().getSimpleName()) && !(typeModel.getClass().isInstance(nmsEntity))){
+               System.out.println("Reloading: " + entityType);
+               NBTTagCompound nbt = new NBTTagCompound();
+               nmsEntity.save(nbt);
+               entity.remove();
+               typeModel.load(nbt);
+               ((CraftWorld)world).getHandle().addEntity(typeModel);
+            }
+         });
+         
+      });
+   }   
+
    @Override
    public CraftEntity getBukkitEntity() {
       if(this.bukkitEntity == null)
@@ -117,6 +144,8 @@ public class NpcBase extends EntityCreature {
       
       setPersistent();
    }
+
+   protected CraftEntity bukkitEntity;
 
    @Override
    protected void initDatawatcher() {
