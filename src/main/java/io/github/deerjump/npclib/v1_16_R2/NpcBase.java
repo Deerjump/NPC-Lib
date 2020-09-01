@@ -87,11 +87,12 @@ public class NpcBase extends EntityCreature {
       
       final EntityTypes<Entity> current = (EntityTypes<Entity>) ENTITY_TYPE.get(new MinecraftKey("custom", name));
       if(current != ENTITY_TYPE.get(null)){
+         System.out.println(current + " already registered!");
          reloadEntities(current);
          return current; 
       }
-         
-      
+
+      System.out.println("Registering new type for:" + name);
       EntityTypes<Entity> type = ENTITY_TYPE.a(
          ENTITY_TYPE.a(model),
          ResourceKey.a(IRegistry.l,  new MinecraftKey("custom", name)),
@@ -99,24 +100,24 @@ public class NpcBase extends EntityCreature {
             model.l(), model.getChunkRange(), model.getUpdateInterval()), Lifecycle.stable()
       );
       setDefaultAttributes(type);
-      // reloadEntities(type);
+      reloadEntities(type);
       return type;
    }
 
-   private static void reloadEntities(EntityTypes<?> entityType){
+   @Deprecated
+   private static <Entity extends NpcBase> void reloadEntities(EntityTypes<Entity> entityType){
       System.out.println("Reloading: " + entityType);
       Bukkit.getWorlds().forEach(world ->{
          world.getEntities().forEach(entity ->{
             net.minecraft.server.v1_16_R2.Entity nmsEntity = ((CraftEntity)entity).getHandle();
             net.minecraft.server.v1_16_R2.Entity typeModel = entityType.a(((CraftWorld)world).getHandle());
 
-            if(nmsEntity.getClass().getSimpleName().equals(typeModel.getClass().getSimpleName()) && !(typeModel.getClass().isInstance(nmsEntity))){
-               System.out.println("Reloading: " + entityType);
+            if(nmsEntity.getClass().getSimpleName().equals(typeModel.getClass().getSimpleName())){
+               Entity newEntity = spawn(entityType, entity.getLocation());
                NBTTagCompound nbt = new NBTTagCompound();
                nmsEntity.save(nbt);
+               newEntity.load(nbt);
                entity.remove();
-               typeModel.load(nbt);
-               ((CraftWorld)world).getHandle().addEntity(typeModel);
             }
          });
          

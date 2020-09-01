@@ -42,7 +42,7 @@ public class HumanBase extends NpcBase {
    protected static final DataWatcherObject<Byte> MAIN_HAND = DataWatcherRegistry.a.a(17);
    protected static final DataWatcherObject<NBTTagCompound> LEFT_SHOULDER_ENTITY = DataWatcherRegistry.p.a(18);
    protected static final DataWatcherObject<NBTTagCompound> RIGHT_SHOULDER_ENTITY = DataWatcherRegistry.p.a(19);
-   private static final int REMOVE_DELAY = 2;
+   private static final int REMOVE_DELAY = 5;
 
    private int ping = 1;
    protected int removeCounter;
@@ -167,7 +167,7 @@ public class HumanBase extends NpcBase {
          
          setSkin(skinTexture, skinSignature);
       }
-
+      updateProfile();
    }
 
    @Override public void b(EntityPlayer player) {
