@@ -6,12 +6,9 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 import javax.annotation.OverridingMethodsMustInvokeSuper;
-
 import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Lifecycle;
-
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.v1_16_R2.CraftWorld;
@@ -66,7 +63,7 @@ public class NpcBase extends EntityCreature {
    protected static DataWatcherObject<Byte> INSENTIENT = null;
 
 
-   public static <Entity extends NpcBase> void setDefaultAttributes(EntityTypes<Entity> type){
+   private static <Entity extends NpcBase> void setDefaultAttributes(EntityTypes<Entity> type){
       try {
          final Field modifiers = Field.class.getDeclaredField("modifiers");
          modifiers.setAccessible(true);
@@ -96,7 +93,7 @@ public class NpcBase extends EntityCreature {
       EntityTypes<Entity> type = ENTITY_TYPE.a(
          ENTITY_TYPE.a(model),
          ResourceKey.a(IRegistry.l,  new MinecraftKey("custom", name)),
-         new EntityTypes<Entity>(entity, model.e(), true, model.b(), model.c(), model.d(), ImmutableSet.of(),
+         new EntityTypes<>(entity, model.e(), true, model.b(), model.c(), model.d(), ImmutableSet.of(),
             model.l(), model.getChunkRange(), model.getUpdateInterval()), Lifecycle.stable()
       );
       setDefaultAttributes(type);
@@ -107,21 +104,16 @@ public class NpcBase extends EntityCreature {
    @Deprecated
    private static <Entity extends NpcBase> void reloadEntities(EntityTypes<Entity> entityType){
       System.out.println("Reloading: " + entityType);
-      Bukkit.getWorlds().forEach(world ->{
-         world.getEntities().forEach(entity ->{
-            net.minecraft.server.v1_16_R2.Entity nmsEntity = ((CraftEntity)entity).getHandle();
-            net.minecraft.server.v1_16_R2.Entity typeModel = entityType.a(((CraftWorld)world).getHandle());
-
-            if(nmsEntity.getClass().getSimpleName().equals(typeModel.getClass().getSimpleName())){
-               Entity newEntity = spawn(entityType, entity.getLocation());
-               NBTTagCompound nbt = new NBTTagCompound();
-               nmsEntity.save(nbt);
-               newEntity.load(nbt);
-               entity.remove();
-            }
-         });
-         
-      });
+      Bukkit.getWorlds().forEach(world -> world.getEntities().forEach(entity -> {
+         net.minecraft.server.v1_16_R2.Entity nmsEntity = ((CraftEntity) entity).getHandle();
+         if (nmsEntity.getEntityType() == entityType) {
+            entity.remove();
+            Entity newEntity = spawn(entityType, entity.getLocation());
+            NBTTagCompound nbt = new NBTTagCompound();
+            nmsEntity.save(nbt);
+            newEntity.load(nbt);
+         }
+      }));
    }   
 
    @Override
@@ -199,14 +191,5 @@ public class NpcBase extends EntityCreature {
 
    @Override public Packet<?> P() {         
       return new PacketPlayOutSpawnEntityLiving(this);
-   }
-
-   protected void sendPackets(Packet<?>...packets){
-      Bukkit.getOnlinePlayers().forEach(player -> {
-         PlayerConnection connection = ((CraftPlayer) player).getHandle().playerConnection;
-         for(Packet<?> packet : packets){
-            connection.sendPacket(packet);
-         }
-      });
    }
 }

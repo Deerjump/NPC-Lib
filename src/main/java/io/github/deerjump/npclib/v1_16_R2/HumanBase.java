@@ -1,39 +1,24 @@
 package io.github.deerjump.npclib.v1_16_R2;
 
 import java.io.InputStreamReader;
-import java.lang.reflect.Field;
 import java.net.URL;
-import java.util.List;
 
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 
+import net.minecraft.server.v1_16_R2.*;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_16_R2.entity.CraftEntity;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import net.minecraft.server.v1_16_R2.ChatComponentText;
-import net.minecraft.server.v1_16_R2.DataWatcherObject;
-import net.minecraft.server.v1_16_R2.DataWatcherRegistry;
-import net.minecraft.server.v1_16_R2.EntityPlayer;
-import net.minecraft.server.v1_16_R2.EntityTypes;
-import net.minecraft.server.v1_16_R2.EnumGamemode;
-import net.minecraft.server.v1_16_R2.NBTTagCompound;
-import net.minecraft.server.v1_16_R2.Packet;
-import net.minecraft.server.v1_16_R2.PacketDataSerializer;
-import net.minecraft.server.v1_16_R2.PacketPlayOutEntityDestroy;
-import net.minecraft.server.v1_16_R2.PacketPlayOutEntityMetadata;
-import net.minecraft.server.v1_16_R2.PacketPlayOutNamedEntitySpawn;
-import net.minecraft.server.v1_16_R2.PacketPlayOutPlayerInfo;
 import net.minecraft.server.v1_16_R2.PacketPlayOutPlayerInfo.EnumPlayerInfoAction;
-import net.minecraft.server.v1_16_R2.World;
+import org.bukkit.craftbukkit.v1_16_R2.entity.CraftPlayer;
 
 public class HumanBase extends NpcBase {
-   private static final Field FIELD_DATA;
 
    // From EntityHuman
    protected static final DataWatcherObject<Float> EXTRA_HEARTS = DataWatcherRegistry.c.a(14);
@@ -44,23 +29,17 @@ public class HumanBase extends NpcBase {
    protected static final DataWatcherObject<NBTTagCompound> RIGHT_SHOULDER_ENTITY = DataWatcherRegistry.p.a(19);
    private static final int REMOVE_DELAY = 5;
 
-   private int ping = 1;
+   private final int ping;
    protected int removeCounter;
    protected Property skin;
-   private EnumGamemode gamemode = EnumGamemode.NOT_SET;
-
-   static {
-      try {
-         (FIELD_DATA = PacketPlayOutPlayerInfo.class.getDeclaredField("b")).setAccessible(true);
-      } catch (Throwable reason) {
-         throw new RuntimeException(reason);
-      }
-   }
+   private EnumGamemode gamemode;
    
    public HumanBase(EntityTypes<? extends HumanBase> type, World world) {
       super(type, world);
       this.datawatcher.set(SKIN_PARTS, (byte) 127);
-      
+      this.setGamemode(EnumGamemode.NOT_SET);
+      this.skin = new Property("textures", "", "");
+      this.ping = 1;
    }
 
    @Override
@@ -88,7 +67,7 @@ public class HumanBase extends NpcBase {
       this.yaw = getHeadRotation();
  
       if(removeCounter == 0){
-         sendPackets(getInfoPacket(EnumPlayerInfoAction.REMOVE_PLAYER));
+         sendPackets(getInfoPacket(false));
          removeCounter--;
       }else if (removeCounter >= 0)
          removeCounter--;
@@ -131,7 +110,6 @@ public class HumanBase extends NpcBase {
          updateProfile();
       } catch (Exception e) {
          e.printStackTrace();
-         return;
       }
    }
 
@@ -141,7 +119,7 @@ public class HumanBase extends NpcBase {
 
    public void updateProfile() {
       PacketPlayOutEntityMetadata metadata = new PacketPlayOutEntityMetadata(getId(), getDataWatcher(), true);
-      PacketPlayOutPlayerInfo playerInfo = getInfoPacket(EnumPlayerInfoAction.ADD_PLAYER);
+      PacketPlayOutPlayerInfo playerInfo = getInfoPacket(true);
       sendPackets(new PacketPlayOutEntityDestroy(this.getId()), playerInfo, getSpawnPacket(), metadata);
 
       resetCounter();
@@ -174,15 +152,6 @@ public class HumanBase extends NpcBase {
       updateProfile();                    
    }
 
-   protected GameProfile getPseudoProfile(){
-      GameProfile profile = new GameProfile(getUniqueID(), getName());
-      
-      if(skin != null)
-         profile.getProperties().put(skin.getName(), skin);
-
-      return profile;
-   }   
-
    public Packet<?> getSpawnPacket(){
       try{
          final ByteBuf buffer = Unpooled.buffer();
@@ -200,27 +169,57 @@ public class HumanBase extends NpcBase {
       } catch (Throwable reason) {throw new RuntimeException(reason);}
    }
 
-   @SuppressWarnings("unchecked")
-   protected PacketPlayOutPlayerInfo getInfoPacket(EnumPlayerInfoAction action) {
-      try {
-         if(action == EnumPlayerInfoAction.ADD_PLAYER)
-            resetCounter();
-         final PacketPlayOutPlayerInfo packet = new PacketPlayOutPlayerInfo(action);
-         ((List<PacketPlayOutPlayerInfo.PlayerInfoData>) FIELD_DATA.get(packet)).add(packet.new PlayerInfoData(
-            getPseudoProfile(), ping, this.gamemode, getCustomName()
-         ));
+//   @SuppressWarnings("unchecked")
+//   protected PacketPlayOutPlayerInfo getInfoPacket(EnumPlayerInfoAction action) {
+//      try {
+//         if(action == EnumPlayerInfoAction.ADD_PLAYER)
+//            resetCounter();
+//         final PacketPlayOutPlayerInfo packet = new PacketPlayOutPlayerInfo(action);
+//         ((List<PacketPlayOutPlayerInfo.PlayerInfoData>) FIELD_DATA.get(packet)).add(packet.new PlayerInfoData(
+//            getPseudoProfile(), ping, this.gamemode, getCustomName()
+//         ));
+//
+//         return packet;
+//      } catch (Throwable reason) { throw new RuntimeException(reason); }
+//   }
 
-         return packet;
-      } catch (Throwable reason) { throw new RuntimeException(reason); }
+   private PacketPlayOutPlayerInfo getInfoPacket(boolean add) {
+      try {
+         System.out.println("Getting Packet");
+         EnumPlayerInfoAction action = add ? EnumPlayerInfoAction.ADD_PLAYER : EnumPlayerInfoAction.REMOVE_PLAYER;
+         IChatBaseComponent name = this.getCustomName();
+         final PacketPlayOutPlayerInfo packet = new PacketPlayOutPlayerInfo(action);
+         final PacketDataSerializer data = new PacketDataSerializer(Unpooled.buffer());
+         data.a(add ? EnumPlayerInfoAction.ADD_PLAYER : EnumPlayerInfoAction.REMOVE_PLAYER);
+         data.d(1).a(this.getUniqueID());
+         if (add) {
+            data.a(name == null ? "" : name.getText()).d(1);
+            data.a(skin.getName()).a(skin.getValue());
+            data.writeBoolean(skin.hasSignature());
+            if (skin.hasSignature()) data.a(skin.getSignature());
+            data.d(gamemode.getId()).d(ping).writeBoolean(name != null);
+            if (name != null) data.a(name);
+         }
+         packet.a(data); data.release(); return packet;
+      } catch (Exception e) { e.printStackTrace(); return null;}
+   }
+
+   protected void sendPackets(Packet<?>...packets){
+      Bukkit.getOnlinePlayers().forEach(player -> {
+         PlayerConnection connection = ((CraftPlayer) player).getHandle().playerConnection;
+         for(Packet<?> packet : packets){
+            connection.sendPacket(packet);
+         }
+      });
    }
 
    @Override
    public Packet<?> P() {
-      return getInfoPacket(EnumPlayerInfoAction.ADD_PLAYER); 
+      return getInfoPacket(true);
    }
 
    @Override public void c(EntityPlayer player) {
-      player.playerConnection.sendPacket(getInfoPacket(EnumPlayerInfoAction.REMOVE_PLAYER));
+      player.playerConnection.sendPacket(getInfoPacket(true));
    }
 
    protected void resetCounter(){
@@ -232,7 +231,7 @@ public class HumanBase extends NpcBase {
    }
    
    @Override public void setNoAI(boolean flag) {
-      return;
+
    }
 
    @Override public boolean isAggressive() {
@@ -240,7 +239,7 @@ public class HumanBase extends NpcBase {
    }
 
    @Override public void setAggressive(boolean flag) {
-      return;
+
    }
 
    @Override public boolean isLeftHanded() {
@@ -248,6 +247,6 @@ public class HumanBase extends NpcBase {
    }
 
    @Override public void setLeftHanded(boolean flag) {
-      return;
+
    }
 }
