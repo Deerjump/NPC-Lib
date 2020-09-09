@@ -19,11 +19,6 @@ public class BaseHuman extends BaseNpc {
       return "BaseHuman";
    }
 
-   @Override
-   public EntityType getType() {
-      return EntityType.PLAYER;
-   }
-   
    public void setSkin(String name){
       this.getHandle().setSkin(name);
    }   
